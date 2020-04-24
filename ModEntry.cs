@@ -20,7 +20,6 @@ namespace IndoorWatering
 		public class SavedConfig
 		{
 			public bool sprinkleInside { get; set; } = true;
-
 			public bool rainInside { get; set; } = false;
 		}
 
@@ -41,11 +40,21 @@ namespace IndoorWatering
 				return;
 			}
 
-			// For each location
+			// Handle greenhouse rain
+			foreach (GameLocation location in Game1.locations)
+			{
+				if (location.IsGreenhouse)
+				{
+					rainOnAllTilesIfNeeded(location);
+				}
+			}
+
+			// Handle rain and sprinklers in indoor buildings
 			foreach (Building building in Game1.getFarm().buildings)
 			{
 				foreach (GameLocation location in building.indoors)
 				{
+					// Sometimes indoor locations are in the list, but null?
 					if (location is null)
 					{
 						continue;
@@ -53,14 +62,9 @@ namespace IndoorWatering
 
 					Monitor.Log($"Triggering sprinklers in {location.NameOrUniqueName} (greenhouse? {location.IsGreenhouse}, outdoors? {location.IsOutdoors})", LogLevel.Trace);
 
-					// If everything should be rained on just do that
-					if (Config.rainInside && Game1.isRaining)
+					// If everything should be rained on just do that, no need to do the sprinklers individually
+					if (rainOnAllTilesIfNeeded(location))
 					{
-						foreach (KeyValuePair<Vector2, TerrainFeature> terrainPair in location.terrainFeatures.Pairs)
-						{
-							water(terrainPair.Value);
-						}
-
 						continue;
 					}
 
@@ -113,6 +117,21 @@ namespace IndoorWatering
 					}
 				}
 			}
+		}
+
+		private bool rainOnAllTilesIfNeeded(GameLocation location)
+		{
+			if (Config.rainInside && Game1.isRaining)
+			{
+				foreach (KeyValuePair<Vector2, TerrainFeature> terrainPair in location.terrainFeatures.Pairs)
+				{
+					water(terrainPair.Value);
+				}
+
+				return true;
+			}
+
+			return false;
 		}
 
 		private void water(TerrainFeature terrainFeature)
