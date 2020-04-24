@@ -1,0 +1,10 @@
+{
+  "Name": "Indoor Watering",
+  "Author": "Sebbity",
+  "Version": "1.0.0",
+  "Description": "Makes sprinklers/rain work indoors (think of it like an open skylight!)",
+  "UniqueID": "Sebbity.IndoorWatering",
+  "EntryDll": "IndoorWatering.dll",
+  "MinimumApiVersion": "2.10.0",
+  "UpdateKeys": [ "GitHub:Novex/stardew-indoor-watering"]
+}
