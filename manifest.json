@@ -1,7 +1,7 @@
 {
   "Name": "Indoor Watering",
   "Author": "Sebbity",
-  "Version": "1.0.1",
+  "Version": "1.0.2-alpha.1",
   "Description": "Makes sprinklers/rain work indoors (think of it like an open skylight!)",
   "UniqueID": "Sebbity.IndoorWatering",
   "EntryDll": "IndoorWatering.dll",

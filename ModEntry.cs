@@ -3,7 +3,9 @@ using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Buildings;
+using StardewValley.Objects;
 using StardewValley.TerrainFeatures;
+using System;
 using System.Collections.Generic;
 
 namespace IndoorWatering
@@ -31,6 +33,37 @@ namespace IndoorWatering
 			this.Config = Helper.ReadConfig<SavedConfig>();			
 
 			helper.Events.GameLoop.DayStarted += OnDayStarted;
+			helper.Events.GameLoop.OneSecondUpdateTicked += OneSecondTick;
+		}
+
+		private void OneSecondTick(object sender, OneSecondUpdateTickedEventArgs e)
+		{
+			if (!Context.IsWorldReady)
+				return;
+
+			Monitor.Log($"---", LogLevel.Warn);
+			Monitor.Log($"Player Status at {Game1.player.getTileX()},{Game1.player.getTileY()}", LogLevel.Warn);
+			foreach (Building building in Game1.getFarm().buildings)
+			{
+				foreach (GameLocation location in building.indoors)
+				{
+					// Sometimes indoor locations are in the list, but null?
+					if (location is null)
+					{
+						continue;
+					}
+
+					foreach (StardewValley.Object tileObject in location.Objects.Values)
+					{
+						if (tileObject is IndoorPot && ((IndoorPot)tileObject).hoeDirt.Value != null)
+						{
+							Monitor.Log($"Indoor Pot Status: {tileObject.TileLocation.X},{tileObject.TileLocation.Y} in {location.Name} = {((IndoorPot)tileObject).hoeDirt.Value.state.Value}", LogLevel.Warn);
+						}
+					}
+				}
+			}
+
+			Monitor.Log($"---", LogLevel.Warn);
 		}
 
 		private void OnDayStarted(object sender, DayStartedEventArgs e)
@@ -60,17 +93,20 @@ namespace IndoorWatering
 						continue;
 					}
 
-					Monitor.Log($"Triggering sprinklers in {location.NameOrUniqueName} (greenhouse? {location.IsGreenhouse}, outdoors? {location.IsOutdoors})", LogLevel.Trace);
+					Monitor.Log($"Watering indoors in {location.NameOrUniqueName} (greenhouse? {location.IsGreenhouse}, outdoors? {location.IsOutdoors})", LogLevel.Trace);
 
 					// If everything should be rained on just do that, no need to do the sprinklers individually
 					if (rainOnAllTilesIfNeeded(location))
 					{
+						Monitor.Log($"Rained in {location.NameOrUniqueName}, continuing", LogLevel.Trace);
 						continue;
 					}
 
 					// Otherwise re-do the sprinkler logic in here (from Object.cs:1017)
 					if (Config.sprinkleInside)
 					{
+						Monitor.Log($"Triggering sprinklers in {location.NameOrUniqueName}", LogLevel.Trace);
+
 						foreach (StardewValley.Object obj in location.Objects.Values)
 						{
 							switch (obj.ParentSheetIndex)
@@ -78,20 +114,14 @@ namespace IndoorWatering
 								case Sprinkler.Basic:
 									foreach (Vector2 adjacentTileLocation in Utility.getAdjacentTileLocations(obj.TileLocation))
 									{
-										if (location.terrainFeatures.ContainsKey(adjacentTileLocation))
-										{
-											water(location.terrainFeatures[adjacentTileLocation]);
-										}
+										waterTile(location, adjacentTileLocation);
 									}
 									break;
 
 								case Sprinkler.Quality:
 									foreach (Vector2 surroundingTileLocation in Utility.getSurroundingTileLocationsArray(obj.TileLocation))
 									{
-										if (location.terrainFeatures.ContainsKey(surroundingTileLocation))
-										{
-											water(location.terrainFeatures[surroundingTileLocation]);
-										}
+										waterTile(location, surroundingTileLocation);
 									}
 									break;
 
@@ -100,12 +130,7 @@ namespace IndoorWatering
 									{
 										for (int index2 = (int)obj.tileLocation.Y - 2; (double)index2 <= (double)obj.tileLocation.Y + 2.0; ++index2)
 										{
-											Vector2 key = new Vector2((float)index1, (float)index2);
-
-											if (location.terrainFeatures.ContainsKey(key))
-											{
-												water(location.terrainFeatures[key]);
-											}
+											waterTile(location, new Vector2((float)index1, (float)index2));
 										}
 									}
 									break;
@@ -123,9 +148,16 @@ namespace IndoorWatering
 		{
 			if (Config.rainInside && Game1.isRaining)
 			{
+				// Water all the terrain tiles
 				foreach (KeyValuePair<Vector2, TerrainFeature> terrainPair in location.terrainFeatures.Pairs)
 				{
-					water(terrainPair.Value);
+					waterTile(location, terrainPair.Key);
+				}
+
+				// And also all the objects, just in case they're pots
+				foreach (StardewValley.Object obj in location.Objects.Values)
+				{
+					waterTile(location, obj.TileLocation);
 				}
 
 				return true;
@@ -134,12 +166,30 @@ namespace IndoorWatering
 			return false;
 		}
 
-		private void water(TerrainFeature terrainFeature)
+		private void waterTile(GameLocation location, Vector2 tileCoordinates)
 		{
-			if (terrainFeature is HoeDirt)
+			// Water indoor pots
+			StardewValley.Object tileObject = location.getObjectAtTile((int)tileCoordinates.X, (int)tileCoordinates.Y);
+
+			if (tileObject is IndoorPot && ((IndoorPot)tileObject).hoeDirt.Value != null)
 			{
-				Monitor.Log($"Watering tile {terrainFeature.currentTileLocation.X},{terrainFeature.currentTileLocation.Y} in {terrainFeature.currentLocation.Name}", LogLevel.Trace);
-				((HoeDirt)terrainFeature).state.Value = 1;
+				Monitor.Log($"Watering indoor pot {tileObject.TileLocation.X},{tileObject.TileLocation.Y} in {location.Name}", LogLevel.Trace);
+				((IndoorPot)tileObject).hoeDirt.Value.state.Value = HoeDirt.watered;
+				
+				// Dirt underneath pots stays dry ;)
+				return;
+			}
+
+			// Water dirt tiles
+			if (location.terrainFeatures.ContainsKey(tileCoordinates))
+			{
+				TerrainFeature terrainFeature = location.terrainFeatures[tileCoordinates];
+
+				if (terrainFeature is HoeDirt)
+				{
+					Monitor.Log($"Watering terrain {terrainFeature.currentTileLocation.X},{terrainFeature.currentTileLocation.Y} in {location.Name}", LogLevel.Trace);
+					((HoeDirt)terrainFeature).state.Value = HoeDirt.watered;
+				}
 			}
 		}
 	}
