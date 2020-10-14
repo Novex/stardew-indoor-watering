@@ -33,16 +33,17 @@ namespace IndoorWatering
 			this.Config = Helper.ReadConfig<SavedConfig>();			
 
 			helper.Events.GameLoop.DayStarted += OnDayStarted;
-			helper.Events.GameLoop.OneSecondUpdateTicked += OneSecondTick;
+			//helper.Events.GameLoop.OneSecondUpdateTicked += OneSecondTick;
 		}
 
+		/*
 		private void OneSecondTick(object sender, OneSecondUpdateTickedEventArgs e)
 		{
 			if (!Context.IsWorldReady)
 				return;
 
-			Monitor.Log($"---", LogLevel.Warn);
-			Monitor.Log($"Player Status at {Game1.player.getTileX()},{Game1.player.getTileY()}", LogLevel.Warn);
+			Monitor.Log($"---", LogLevel.Trace);
+			Monitor.Log($"Player Status at {Game1.player.getTileX()},{Game1.player.getTileY()}", LogLevel.Trace);
 			foreach (Building building in Game1.getFarm().buildings)
 			{
 				foreach (GameLocation location in building.indoors)
@@ -57,14 +58,15 @@ namespace IndoorWatering
 					{
 						if (tileObject is IndoorPot && ((IndoorPot)tileObject).hoeDirt.Value != null)
 						{
-							Monitor.Log($"Indoor Pot Status: {tileObject.TileLocation.X},{tileObject.TileLocation.Y} in {location.Name} = {((IndoorPot)tileObject).hoeDirt.Value.state.Value}", LogLevel.Warn);
+							Monitor.Log($"Indoor Pot Status: {tileObject.TileLocation.X},{tileObject.TileLocation.Y} in {location.Name} = {((IndoorPot)tileObject).hoeDirt.Value.state.Value}", LogLevel.Trace);
 						}
 					}
 				}
 			}
 
-			Monitor.Log($"---", LogLevel.Warn);
+			Monitor.Log($"---", LogLevel.Trace);
 		}
+		*/
 
 		private void OnDayStarted(object sender, DayStartedEventArgs e)
 		{
